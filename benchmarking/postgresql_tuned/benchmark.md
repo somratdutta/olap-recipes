@@ -1,4 +1,4 @@
-# Benchmarking Untuned PostgreSQL for an OLAP Use Case
+# Benchmarking Tuned PostgreSQL for an OLAP Use Case
 
 ## **Methodology**
 
