@@ -1,4 +1,4 @@
-# Benchmarking Untuned PostgreSQL for an OLAP Use Case
+# Benchmarking Tuned PostgreSQL for an OLAP Use Case
 
 ## **Methodology**
 
@@ -106,7 +106,7 @@ SELECT pg_size_pretty(pg_relation_size('hits')) AS table_size;
 ```
 ### **Insertion Time**
 
-With parallel insertion (refer this [script](https://github.com/ClickHouse/ClickBench/blob/main/postgresql-tuned/benchmark.sh)), inserting the dataset takes **10.2167 minutes (613 seconds)**.
+With parallel insertion (refer this [script](https://github.com/ClickHouse/ClickBench/blob/main/postgresql-tuned/benchmark.sh)), inserting the dataset takes **8m21.361 minutes (613 seconds)**.
 
 ```
 time split /tmp/hits.tsv --verbose  -n r/$(( $(nproc)/2 ))  --filter='sudo -u postgres psql test -t -c "\\copy hits FROM STDIN"'
