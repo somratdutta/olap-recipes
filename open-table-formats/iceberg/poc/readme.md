@@ -1,20 +1,20 @@
 ## Apache Iceberg POC - Why and How
 
-### Why
+### Why?
 
 The purpose of this Proof of Concept (POC) is to evaluate the feasibility and benefits of adopting Apache Iceberg in a data infrastructure. [Apache Iceberg](https://iceberg.apache.org/) is an open, high-performance table format designed to handle large-scale analytics and bring consistency, scalability, and reliability to big data workloads.
 
 #### The key reasons for exploring this POC includes exploring the following concepts:
 
-- **Scalable Table Management:** Efficient metadata management allows for quick, scalable data operations on large datasets.
+- **Scalable Table Management:** Iceberg supports efficient metadata management which allows for quick, scalable data operations on large datasets.
 
-- **Improved Reliability:** Offers ACID compliance and snapshot isolation, ensuring safer concurrent operations and reliable data rollbacks.
+- **Improved Reliability:** Iceberg supports ACID compliance and snapshot isolation, ensuring safer concurrent operations and reliable data rollbacks.
 
 - **Query Optimization:** Iceberg supports efficient query planning with metadata-driven optimizations, potentially reducing query latency and resource usage.
 
 - **Flexible Integration:** Compatible with popular query engines like Apache Spark, Presto, Trino, and Hive, ensuring minimal friction in adoption.
 
-### How
+### How?
 
 #### At a high-level, the POC includes:
 
@@ -30,7 +30,7 @@ Using Docker Compose simplifies the deployment of the necessary infrastructure, 
 - **Querying Capabilities:** Running analytic queries using standard SQL engines compatible with Iceberg (e.g., Spark SQL, Clickhouse) to demonstrate interoperability and performance improvements.
 
 
-### Understanding Iceberg
+### Understanding Iceberg!!
 
 #### This POC also includes evaluating and understanding:
 
