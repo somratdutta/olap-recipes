@@ -2,7 +2,6 @@ services:
   spark-iceberg:
     image: tabulario/spark-iceberg:3.5.1_1.5.0
     container_name: spark-iceberg
-    build: spark/
     networks:
       - iceberg_net
     depends_on:
@@ -11,6 +10,7 @@ services:
     volumes:
       - ./lakehouse/:/home/iceberg/lakehouse
       - ./notebooks:/home/iceberg/notebooks/notebooks
+      - ./jars:/opt/spark-extra-jars  # Mount JARs separately
     environment:
       - AWS_ACCESS_KEY_ID=admin
       - AWS_SECRET_ACCESS_KEY=password
@@ -18,11 +18,12 @@ services:
       - SPARK_SQL_EXECUTION_ARROW_PYSPARK_ENABLED=true
       - SPARK_DRIVER_MEMORY=2g
       - SPARK_EXECUTOR_MEMORY=2g
-      - SPARK_SUBMIT_OPTIONS=--conf spark.hadoop.fs.s3a.endpoint=http://minio:9000
-        --conf spark.hadoop.fs.s3a.access.key=admin
-        --conf spark.hadoop.fs.s3a.secret.key=password
-        --conf spark.hadoop.fs.s3a.path.style.access=true
-        --conf spark.hadoop.fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem
+      - SPARK_DRIVER_EXTRA_CLASSPATH=/opt/spark-extra-jars/*
+      - SPARK_EXECUTOR_EXTRA_CLASSPATH=/opt/spark-extra-jars/*
+      - SPARK_HADOOP_FS_S3A_ACCESS_KEY=admin
+      - SPARK_HADOOP_FS_S3A_SECRET_KEY=password
+      - SPARK_HADOOP_FS_S3A_ENDPOINT=http://minio:9000
+      - SPARK_HADOOP_FS_S3A_PATH_STYLE_ACCESS=true
     ports:
       - "8888:8888"
       - "8080:8080"
@@ -82,6 +83,7 @@ services:
       /usr/bin/mc policy set public minio/lakehouse/;
       tail -f /dev/null
       "
+
 
 
   clickhouse:
