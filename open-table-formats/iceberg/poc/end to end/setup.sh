@@ -15,7 +15,7 @@ chmod +x ./clickhouse/init-clickhouse.sh
 echo "📥 Downloading and extracting dataset..."
 BASE_URL="https://datasets-documentation.s3.eu-west-3.amazonaws.com/nyc-taxi"
 DATA_IMPORT_DIR="./clickhouse/data_import"
-FILES=( "trips_0" "trips_1" "trips_2" )
+FILES=( "trips_0" )
 mkdir -p "$DATA_IMPORT_DIR"
 
 for FILE in "${FILES[@]}"; do

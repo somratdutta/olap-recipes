@@ -18,6 +18,11 @@ services:
       - SPARK_SQL_EXECUTION_ARROW_PYSPARK_ENABLED=true
       - SPARK_DRIVER_MEMORY=2g
       - SPARK_EXECUTOR_MEMORY=2g
+      - SPARK_SUBMIT_OPTIONS=--conf spark.hadoop.fs.s3a.endpoint=http://minio:9000
+        --conf spark.hadoop.fs.s3a.access.key=admin
+        --conf spark.hadoop.fs.s3a.secret.key=password
+        --conf spark.hadoop.fs.s3a.path.style.access=true
+        --conf spark.hadoop.fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem
     ports:
       - "8888:8888"
       - "8080:8080"
