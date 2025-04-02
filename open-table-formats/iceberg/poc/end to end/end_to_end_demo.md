@@ -1,11 +1,109 @@
 ### Queries
-Source1: https://www.e6data.com/blog/iceberg-metadata-evolution-after-compaction
+Source: https://www.e6data.com/blog/iceberg-metadata-evolution-after-compaction
 
-The NYC Yellow Taxi trip data for January and February 2022. You do not need to download the dataset, as it has already been baked into the container stored as parquet files.
+Note: This requires a bit more memory so it is advised to increase your colima/docker desktop memory limits.
+```shell
+colima start --cpu 4 --memory 8
+```
 
-Note: This requires a bit more memory so it is advised to increase your colima memory limits.
+### Docker Setup
 
-## Flow 1: Clickhouse -> S3 Parquet
+```mermaid
+graph TD
+    subgraph Storage
+        MINIO["MinIO<br/>(S3-compatible Storage)"]
+        MC["mc<br/>(MinIO CLI)"]
+    end
+
+    subgraph Catalog
+        REST["Iceberg REST Catalog<br/>(Port: 8181)"]
+    end
+
+    subgraph Compute
+        SPARK["Spark-Iceberg<br/>(Ports: 8888, 8080, etc.)"]
+        CLICKHOUSE["ClickHouse<br/>(Parquet I/O via S3)"]
+    end
+
+    MC --> MINIO
+    REST --> MINIO
+    SPARK --> MINIO
+    SPARK --> REST
+    CLICKHOUSE --> MINIO
+```
+
+#### Setup
+Note: You can view the s3 directories and folders using minio ui
+```shell
+http://localhost:9001/login
+username: admin
+password: passwrod
+```
+All the commands from here on should be run from within the directory. If you are in a different directory, cd into the directory **end to end**.
+
+```shell
+# Run only if not the end to end directory
+cd end to end
+```
+
+Once in the directory, grant executable permissions to setup.sh and teardown.sh
+
+```shell
+chmod +x ./setup.sh ./teardown.sh
+```
+
+### Setup Script Summary (`setup.sh`)
+
+This script automates the setup of a local lakehouse environment with Spark, Iceberg, MinIO, ClickHouse, and a REST catalog.
+
+**Key actions:**
+
+- Creates required directories (`lakehouse`, `minio/data`, `notebooks`, etc.)
+- Downloads NYC Taxi dataset (`trips_0`, `trips_1`, `trips_2`) and extracts it into ClickHouse's import directory
+- Downloads necessary JARs for Spark to connect with S3 (Hadoop AWS and AWS SDK)
+- Starts all services using Docker Compose
+- Initializes the ClickHouse table and loads the dataset using `init-clickhouse.sh`
+
+### ClickHouse Initialization Script Summary (`init-clickhouse.sh`)
+
+This script is executed inside the ClickHouse container to:
+
+- Wait for the ClickHouse server to be ready
+- Create a `trips` table (NYC Taxi schema) with geolocation, fare, and trip info
+- Import all `.tsv` dataset files from `/var/lib/clickhouse/data_import` into the `trips` table
+
+The table uses the `MergeTree` engine with `pickup_datetime` and `dropoff_datetime` as the primary key.
+
+### Teardown Script Summary (`teardown.sh`)
+
+Use this script to clean up the entire lakehouse environment:
+
+- Stops and removes all Docker containers and volumes
+- Deletes local project directories:
+  - `lakehouse/` (Iceberg data)
+  - `minio/` (object store data)
+  - `clickhouse/` (database files and import data)
+
+## Flow 1: Moving Data from Clickhouse to Iceberg Tables
+
+```mermaid
+flowchart TD
+    A[ClickHouse<br/>Preloaded trips table]
+    B[ClickHouse S3 Function<br/>Writes Parquet to MinIO]
+    C[MinIO<br/>clickhouse_generated/trips.parquet]
+    D[Spark SQL<br/>Shell with manual config]
+    E[Create Iceberg Table<br/>demo.iceberg.trips]
+    F[Insert Parquet<br/>into Iceberg table]
+    G[MinIO<br/>iceberg/trips]
+    H[ClickHouse<br/>Query with icebergS3]
+
+    A --> B
+    B --> C
+    C --> D
+    D --> E
+    E --> F
+    F --> G
+    G --> H
+```
 
 ### Step 1: Data from clickhouse tables into S3 as a parquet file
 
@@ -14,7 +112,7 @@ Fire up clickhouse client
 ```shell
 docker exec -it clickhouse clickhouse-client
 ```
-The pre created table is within default database. We will write this table as a parquet file into s3 bucket.
+The pre created **trips** table is within default database. We will write this table as a parquet file into s3 bucket.
 
 ```sql
 INSERT INTO FUNCTION s3(
@@ -27,14 +125,18 @@ SELECT * FROM trips;
 
 This parquet file can be then queried using clickhouse itself.
 
-Top 3 rows from parquet file
+Count of rows from parquet file
 ```sql
-SELECT * FROM s3('http://minio:9000/lakehouse/clickhouse_generated/trips.parquet','admin','password') LIMIT 3;
+SELECT count(*) FROM s3('http://minio:9000/lakehouse/clickhouse_generated/trips.parquet','admin','password');
+```
+It should match the count of rows in trips table
+```sql
+SELECT count(*) from trips;
 ```
 
 ### Step 2: Creating iceberg table using this parquet file
-Fire up spark sql: For some reason spark sql is not inheriting the configs passed 
-in the env variables in docker compose file. Hence we are hard coding it here.
+Fire up spark sql: For some reason spark sql does not inherit the configurations passed 
+as the env variables in docker compose file. Hence we are configuring the same here.
 
 ```shell
 docker exec -it spark-iceberg spark-sql \
@@ -47,7 +149,7 @@ docker exec -it spark-iceberg spark-sql \
 ```
 Create table
 ```sql
-CREATE TABLE demo.clickhouse.trips (
+CREATE TABLE demo.iceberg.trips (
                                        trip_id             INT,
                                        pickup_datetime     TIMESTAMP,
                                        dropoff_datetime    TIMESTAMP,
@@ -71,13 +173,17 @@ PARTITIONED BY (
 );
 ```
 
-Create a temporary table using this data
+Insert into this iceberg table using parquet file ingested before
 ```sql
-INSERT INTO demo.clickhouse.trips
+INSERT INTO demo.iceberg.trips
 SELECT * FROM parquet.`s3a://lakehouse/clickhouse_generated/trips.parquet`;
 ```
+You can query the count of rows using this spark sql query:
+```sql
+SELECT COUNT(*) FROM demo.iceberg.trips;
+```
 
-Querying back from clickhouse Top 3 rows from iceberg tables
+### Step 3: Querying iceberg tables from clickhouse
 
 Fire up clickhouse client
 
@@ -85,6 +191,11 @@ Fire up clickhouse client
 docker exec -it clickhouse clickhouse-client
 ```
 
+Query this new table count
 ```sql
-SELECT count(*) FROM icebergS3('http://minio:9000/lakehouse/clickhouse/trips','admin','password') LIMIT 3;
+SELECT count(*) FROM icebergS3('http://minio:9000/lakehouse/iceberg/trips','admin','password');
+```
+It should match the count of rows in trips table
+```sql
+SELECT count(*) from trips;
 ```

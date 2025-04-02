@@ -9,7 +9,6 @@ services:
       - minio
     volumes:
       - ./lakehouse/:/home/iceberg/lakehouse
-      - ./notebooks:/home/iceberg/notebooks/notebooks
       - ./jars:/opt/spark-extra-jars  # Mount JARs separately
     environment:
       - AWS_ACCESS_KEY_ID=admin
